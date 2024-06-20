@@ -12,8 +12,7 @@ from cct_module import calculate_cct
 import io
 import base64
 
-app = dash.Dash(__name__)
-server = app.server
+
 
 # Constants
 CORRECTION_FACTOR_DAYLIGHT = 14388 / 14380
@@ -92,6 +91,8 @@ for i in range(1, 13):
 
 # Initialize Dash app with callback exceptions suppressed
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX], suppress_callback_exceptions=True)
+server = app.server
+
 
 # Define layout
 app.layout = dbc.Container(fluid=True, children=[
@@ -230,6 +231,7 @@ app.layout = dbc.Container(fluid=True, children=[
         ]),
     ]),
 ])
+
 
 # # Callbacks for updating UI and calculations
 # @app.callback(
@@ -428,3 +430,5 @@ def update_all_outputs(rows, columns, test_choice, ref_choice, stored_cct_value,
 # Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
+
+
