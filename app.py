@@ -12,6 +12,9 @@ from cct_module import calculate_cct
 import io
 import base64
 
+app = dash.Dash(__name__)
+server = app.server
+
 # Constants
 CORRECTION_FACTOR_DAYLIGHT = 14388 / 14380
 CORRECTION_FACTOR_ILLUM_A = 14350 / 14388
