@@ -60,7 +60,7 @@ def interpolate_and_normalize(spec):
 
 # Load test spectra from the provided text file
 file_path_test = 'testSources_test.csv'
-file_path_ref = 'daylighttestSources.csv'
+file_path_ref = 'daylighttestsources.csv'
 test_spectra_df = pd.read_csv(file_path_test)
 ref_spectra_df = pd.read_csv(file_path_ref)
 
