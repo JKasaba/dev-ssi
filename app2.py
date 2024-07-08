@@ -391,5 +391,3 @@ def update_all_outputs(rows, columns, test_choice, ref_choice, stored_cct_value,
 # Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
-
-
