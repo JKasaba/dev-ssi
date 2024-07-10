@@ -191,16 +191,16 @@ app.layout = dbc.Container(fluid=True, children=[
                                 dcc.Tab(label='Test Spectrum', children=[
                                     html.Div(id='spectraTest', children=[dash_table.DataTable(
                                         id='spectra-test-table', 
-                                        data=warm_led_spec.to_dict('records'),  # Initialize with default data
-                                        columns=[{"name": i, "id": i} for i in warm_led_spec.columns],   # Initialize with default columns
+                                        data=warm_led_spec.to_dict('records'),
+                                        columns=[{"name": i, "id": i} for i in warm_led_spec.columns], 
                                         editable=True,
-                                        page_size=1000,  # Number of rows per page
+                                        page_size=1000,
                                         export_format="csv",
                                         export_headers="display",
                                     )])
                                 ]),
                                 dcc.Tab(label='Reference Spectrum', children=[
-                                    html.Div(id='spectraRef', )
+                                    html.Div(id='spectraRef')
                                 ]),
                             ]),
                         ])
@@ -213,8 +213,12 @@ app.layout = dbc.Container(fluid=True, children=[
                     ], style={'margin-top': '20px'}),
                     dbc.Card([
                         dbc.CardHeader("Spectral Similarity Index (SSI)", style={'backgroundColor': '#000000', 'color': '#BA9E5E'}),
-                        dbc.CardBody([html.H4(id='ssiText', className='card-text')]),
+                        dbc.CardBody([html.H5(id='ssiText', className='card-text')]),
                     ], style={'margin-top': '20px'}),
+                    dbc.Card([
+                        dbc.CardHeader("Default Reference Spectrum Used", style={'backgroundColor': '#000000', 'color': '#BA9E5E'}),
+                        dbc.CardBody([html.H5(id='defaultspecused', className='card-text')]),
+                    ], id='default-spec-card', style={'margin-top': '20px'}),
                 ]),
             ]),
         ]),
@@ -238,6 +242,15 @@ app.layout = dbc.Container(fluid=True, children=[
 )
 def update_upload_card_visibility(test_choice):
     if test_choice == 'Custom':
+        return {'display': 'block'}
+    return {'display': 'none'}
+
+@app.callback(
+    Output('default-spec-card', 'style'),
+    Input('refChoice', 'value')
+)
+def update_defaultSpec_card_visibility(ref_choice):
+    if  ref_choice == 'Default':
         return {'display': 'block'}
     return {'display': 'none'}
 
@@ -265,6 +278,7 @@ def update_spectra_test_table(test_choice, contents, filename):
             df = parse_contents(contents, filename)
             custom_spec = df
             df = interpolate_and_normalize(df)
+            df = df.round(5) 
             return df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], custom_spec.to_dict('records')
         else:
             df = warm_led_spec
@@ -272,7 +286,8 @@ def update_spectra_test_table(test_choice, contents, filename):
         df = fluorescent_specs[test_choice]
     else:
         return [], [], {}
-
+    
+    df = df.round(5) 
     return df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], {}
 
 @app.callback(
@@ -293,7 +308,8 @@ def update_cct_input_visibility(ref_choice, ref_cct):
 @app.callback(
     [Output('plotRef', 'figure'),
      Output('spectraRef', 'children'),
-     Output('ssiText', 'children')],
+     Output('ssiText', 'children'),
+     Output('defaultspecused', 'children')],
     [Input('spectra-test-table', 'data'),
      Input('spectra-test-table', 'columns'),
      Input('testChoice', 'value'), 
@@ -311,12 +327,15 @@ def update_all_outputs(rows, columns, test_choice, ref_choice, stored_cct_value,
         return fig, html.Div("Invalid data format."), "Spectral Similarity Index: N/A"
     
     test_df = pd.DataFrame(rows, columns=[c['name'] for c in columns])  # Create DataFrame from DataTable rows
+    test_df = test_df.round(5)
+
+    testcct = cct_mccamy(test_df).round(2)
 
     # Plot test spectrum
     if test_choice == 'Custom' and custom_spec_data:
-        fig.add_trace(go.Scatter(x=test_df['wavelength'], y=test_df['intensity'], mode='lines', name=f'Test Spectrum [CCT: {int(cct_mccamy(test_df))}]'))
+        fig.add_trace(go.Scatter(x=test_df['wavelength'], y=test_df['intensity'], mode='lines', name=f'Test Spectrum [CCT: {testcct}]'))
     else:
-        fig.add_trace(go.Scatter(x=test_df['wavelength'], y=test_df['intensity'], mode='lines', name=f'Test Spectrum [CCT: {int(cct_mccamy(test_df))}]'))
+        fig.add_trace(go.Scatter(x=test_df['wavelength'], y=test_df['intensity'], mode='lines', name=f'Test Spectrum [CCT: {testcct}]'))
 
     # Update reference spectrum based on the CCT value
     if ref_choice == 'D50':
@@ -350,21 +369,17 @@ def update_all_outputs(rows, columns, test_choice, ref_choice, stored_cct_value,
             custom_spec_daylight = daylight(cct_mccamy(test_df), wavelengths)
             df = interpolate_and_normalize(custom_spec_daylight)
 
-    # if ref_choice == 'Custom_Blackbody' or ref_choice == 'Custom_Daylight':
-    #     graph_cct_var = ref_cct_value
-    # elif ref_choice == 'Default':
-    #     graph_cct_var = CCT_MAPPING[test_choice]
-    # else:
-    #     graph_cct_var = CCT_MAPPING[ref_choice]
 
-    fig.add_trace(go.Scatter(x=df['wavelength'], y=df['intensity'], mode='lines', name=f'Reference Spectrum [CCT: {int(cct_mccamy(df))}]'))
+    df = df.round(5)
+
+    refcct = cct_mccamy(df).round(2) 
+
+    fig.add_trace(go.Scatter(x=df['wavelength'], y=df['intensity'], mode='lines', name=f'Reference Spectrum [CCT: {refcct}]'))
 
     table = dash_table.DataTable(
             data=df.to_dict('records'),
             columns=[{"name": i, "id": i} for i in df.columns],
             editable=False,  # Allows users to edit the data in the table
-            sort_action="native",  # Allows sorting by columns
-            page_action="native",  # Enables pagination
             page_size=1000,  # Number of rows per page
             export_format="csv",
             export_headers="display",
@@ -385,8 +400,14 @@ def update_all_outputs(rows, columns, test_choice, ref_choice, stored_cct_value,
 
         ssi_value = calculate_ssi(test_wavelengths, test_intensity, ref_wavelengths, ref_intensity)
         ssi_value_text = f"Spectral Similarity Index: {int(ssi_value)}"
+    # testcct = cct_mccamy(test_data).round(2)
+    # refcct = cct_mccamy(ref_data).round(2)           
+    if testcct < 4000:
+        default_spec_text = f"Blackbody with CCT = {refcct}"
+    else:
+        default_spec_text = f"CIE Daylight with CCT = {refcct}"
 
-    return fig, table, ssi_value_text
+    return fig, table, ssi_value_text, default_spec_text
 
 # Run the app
 if __name__ == '__main__':
